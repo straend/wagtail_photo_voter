@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% load wagtailcore_tags static wagtailimages_tags %}
+
+{% block content %}
+    <div class="row">
+        <h2>{{ page.title }}</h2>
+    </div>
+    <div class="col-md-9 gallery" >
+            
+            {% for field in entries %}
+            <div class="card mb-3">
+                <div class="row no-gutters">
+                    <div class="col-md-4">
+                        {% image field fill-200x200 as thumb %}
+    
+                        <a href="{{field.link}}" data-lightbox="{{page.id}}"
+                            data-title="{{field.title}}">
+                            <img {{ thumb.attrs }} class="img-fluid" />
+                        </a>
+    
+                    </div>
+                    <div class="col-md-8">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <span class="badge badge-primary badge-pill" id="{{ field.id }}_score">
+                                0
+                                </span>
+                                {{ field.title }}
+                            </h5>
+                            <p class="card-text">
+                                {% for p in points %}
+                                <button id="btn_{{field.id}}_{{p}}" type="button" class="btn btn-outline-secondary mt-1" onclick="voter.vote(this);">{{p}}</button>
+                                {% endfor %}
+                            </p>
+    
+                            
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+    </div>
+    <div class="col-md-3">
+        <div class="sticky-top">
+        <ul id="top-list" class="list-group">
+        </ul>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'lightbox/css/lightbox.css' %}">
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'lightbox/js/lightbox.js' %}"></script>
+    
+    <script>
+    $(function() {
+        $.ajaxSetup({
+            headers: { "X-CSRFToken": '{{csrf_token}}' }
+        });
+        voter.init();
+
+        lightbox.option({
+            'resizeDuration': 200,
+        })
+    });
+    
+    var voter = {
+        init(allowSame) {
+            this.allowSame = allowSame;
+            this.loadPoints();
+            this.currentPoints={};
+        },
+        loadPoints() {
+            var me = this;
+            $.getJSON('v/', function(data){
+                data.forEach(vote => {
+                    me.setPointsFor(vote.id, vote.points);
+                    
+                    me.currentPoints[vote.id] = vote.points;
+                });
+            });
+        },
+    
+        enable(point, enable) {
+            for (var key in this.currentPoints){
+                var trg = $("#btn_"+key+"_"+point);
+                trg.toggleClass("disabled", !enable);
+                
+                if (!this.allowSame){
+                    if (enable){
+                        trg.removeAttr("disabled");
+                    } else {
+                        trg.attr("disabled", "disabled");
+                    }
+                }
+            }
+        },
+        toggle(id, points, current){
+            var trg = $("#btn_"+id+"_"+points);
+            trg.toggleClass("btn-outline-secondary", !current);
+            trg.toggleClass("btn-primary", current);
+            trg.toggleClass("disabled", current);
+        },
+        setPointsFor(id, points) {
+            $("#"+id+"_score").text(points+"");
+            this.toggle(id, points, true);
+            if(points>0){
+                this.enable(points, false);
+            }
+            this.toggle(id,this.currentPoints[id], false);
+            this.enable(this.currentPoints[id], true);
+            
+            this.currentPoints[id] = points;
+
+        },
+        vote(me){
+            var x = me.id.split('_');
+            var v = this;
+            // TODO show spinner and close it
+            $.post("v/"+x[1]+"/", {'points': x[2]}, function(data){
+                console.log(data);
+                v.setPointsFor(x[1], x[2]);
+            });
+        }
+
+    };
+    
+    </script>
+{% endblock %}
+
