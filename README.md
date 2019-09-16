@@ -28,7 +28,9 @@ INSTALLED_APPS = [
 
 To add a competition create a new page of typ `Competition` enter title and rules (shown on submission page). You can enter dates for when submissions are allowed (if empty always allowed) and voting dates (empty, always allowed).
  
-Templates are extending `base.html` which should have blocks for `content` `extra_css` `extra_js` and bootstrap, and jquery loaded
+Templates are extending `base.html` which should have blocks for `content` `extra_css` `extra_js`. 
+ 
+And Bootstrap, and jQuery loaded (for example via `django-bootstrap4`)
  
 You can modify the point-system with commasepareted values and `allow same points`.
 0 points can always be given to any entry.

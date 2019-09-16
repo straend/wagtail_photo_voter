@@ -149,7 +149,7 @@ class Competition(RoutablePageMixin, Page):
         context['page'] = self
         return render(
             request, 
-            'voter/vote.html', 
+            'wagtailphotovoter/vote.html', 
             context
         )   
     
@@ -165,7 +165,7 @@ class Competition(RoutablePageMixin, Page):
         context['page'] = self
         return render(
             request, 
-            'voter/result.html', 
+            'wagtailphotovoter/result.html', 
             context
         )   
     
@@ -207,7 +207,7 @@ class Competition(RoutablePageMixin, Page):
                 messages.error(request, 'Sumbissions closed {}'.format(self.submission_end))
             return render(
                 request, 
-                'voter/add.html', 
+                'wagtailphotovoter/add.html', 
                 context
             )
         
@@ -242,7 +242,7 @@ class Competition(RoutablePageMixin, Page):
         context['images'] = iform
         return render(
             request, 
-            'voter/add.html', 
+            'wagtailphotovoter/add.html', 
             context
         )
 
