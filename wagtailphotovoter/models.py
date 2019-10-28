@@ -234,6 +234,9 @@ class Competition(RoutablePageMixin, Page):
                         gear = gear,
                         location = location,
                     )
+                    messages.success(request, 'Photo \'{}\' successfully submitted'.format(title))
+                iform = imageFormSet()
+                aform = AuthorForm()
         else:
             iform = imageFormSet()
             aform = AuthorForm()
