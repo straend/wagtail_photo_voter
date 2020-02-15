@@ -8,7 +8,7 @@ from django.utils.decorators import method_decorator
 
 from django.contrib import messages
 from django.forms.formsets import formset_factory
-from django.http import JsonResponse, HttpResponseForbidden, HttpResponseNotAllowed, HttpResponse
+from django.http import JsonResponse, HttpResponseForbidden, HttpResponseNotAllowed, HttpResponse, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
 from django.utils.text import slugify
 from django.utils import timezone
@@ -57,9 +57,12 @@ class Competition(RoutablePageMixin, Page):
     allowed_points = models.CharField(max_length=128, default="0,1,2,3,4,5,6,7,8,9,10")
     allow_same_points = models.BooleanField(default=False)
 
+    entries_per_person = models.PositiveIntegerField(default=2)
+    entries_in_rating = models.PositiveIntegerField(default=1)
+    
     submission_start = models.DateTimeField(blank=True, null=True)
     submission_end = models.DateTimeField(blank=True, null=True)
-    
+        
     voting_start = models.DateTimeField(blank=True, null=True)
     voting_end = models.DateTimeField(blank=True, null=True)
     
@@ -67,6 +70,7 @@ class Competition(RoutablePageMixin, Page):
         FieldPanel('rules'),
         FieldPanel('allowed_points'),
         FieldPanel('allow_same_points'),
+        FieldRowPanel([FieldPanel('entries_per_person'), FieldPanel('entries_in_rating')]),
         FieldRowPanel([FieldPanel('submission_start'), FieldPanel('submission_end')]),
         FieldRowPanel([FieldPanel('voting_start'), FieldPanel('voting_end')]),
     ]
@@ -211,7 +215,7 @@ class Competition(RoutablePageMixin, Page):
                 context
             )
         
-        imageFormSet = formset_factory(ImageForm,extra=2, max_num=2, min_num=1)
+        imageFormSet = formset_factory(ImageForm,extra=self.entries_per_person, max_num=self.entries_per_person, min_num=1)
         
         if request.method == 'POST':
             iform = imageFormSet(request.POST, request.FILES)
@@ -219,6 +223,10 @@ class Competition(RoutablePageMixin, Page):
             if iform.is_valid() and aform.is_valid():
                 name = aform.cleaned_data.get('name')
                 email = aform.cleaned_data.get('email')
+                user, created = EntryUser.objects.get_or_create(email=email)
+                user.name = name
+                user.save()
+
                 for i in iform:
                     gear = i.cleaned_data.get('gear')
                     title = i.cleaned_data.get('title')
@@ -229,14 +237,13 @@ class Competition(RoutablePageMixin, Page):
                         file=i.cleaned_data.get('photo'),
                         title=title,
                         competition = self,
-                        author = name,
-                        email = email,
                         gear = gear,
                         location = location,
+                        user=user,
                     )
-                    messages.success(request, 'Photo \'{}\' successfully submitted'.format(title))
-                iform = imageFormSet()
-                aform = AuthorForm()
+                    messages.success(request, "Your entry '{}' has been submitted".format(title))
+                # Both forms valid, so redirect to avoid multiple submissions of same
+                return HttpResponseRedirect('')
         else:
             iform = imageFormSet()
             aform = AuthorForm()
@@ -259,6 +266,13 @@ class Votes(models.Model):
     class Meta:
         unique_together = [['user', 'entry']]
 
+class EntryUser(models.Model):
+    name = models.CharField(max_length=256)
+    email = models.EmailField()
+    
+    def __str__(self):
+        return "{}: {}".format(self.name, self.email)
+
 class EntryImage(AbstractImage):
     competition = models.ForeignKey(
         Competition, 
@@ -266,12 +280,11 @@ class EntryImage(AbstractImage):
         related_name='entries',
         null=True
     )
-    author = models.CharField(max_length=256)
-    email = models.EmailField()
     title = models.CharField(max_length=256)
     gear = models.CharField(max_length=256)
     location = models.CharField(max_length=256)
     submitted = models.DateTimeField(auto_now_add=True)
+    user = models.ForeignKey(EntryUser, on_delete=models.CASCADE, related_name='entries', null=True)
     
     def get_my_path(self):
         return Path('competition') / "{}".format(self.competition.id)

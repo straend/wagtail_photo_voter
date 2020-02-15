@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="wagtail_photo_voter",
-    version="0.9.3",
+    version="0.9.5",
     author="Tomas Strand",
     author_email="wagtail@tomas.fik1.net",
     description="A Wagtail module for creating Photo competitions with voting",
