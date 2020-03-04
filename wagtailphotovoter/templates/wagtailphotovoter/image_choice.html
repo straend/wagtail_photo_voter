@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% load wagtailcore_tags static wagtailimages_tags %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-sm-12">
+        <h2>{{ page.title }}</h2><br>
+        
+        <div class="alert alert-primary" role="alert" id="alert_info">
+            Choose one image from each row <span>(this will turn green)</span><br>
+        </div>
+        By clicking on a image You'll get a bigger image (click outside or on 'esc' to close)<br>
+    </div>
+    </div>
+
+    <form id="data_form" method="POST">
+    {% csrf_token %}
+    <div class="col-md-12 gallery" >
+            {% for user in users.all %}
+            {% if user.entries.count > 1 %}
+            <div class="row mt-3 one-user">
+                <!--<fieldset id="user_{{user.id}}">-->
+                {% for e in user.entries.all %}
+                {% image e fill-200x200 as thumb %}
+                <div class="col">
+                    <a href="{{e.link}}" data-lightbox="{{page.id}}_{{user.id}}"
+                        data-title="{{e.title}}">
+                        <img {{ thumb.attrs }} class="img-fluid" />
+                    </a>
+                    <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="user_{{user.id}}" value="{{e.id}}" id="user_{{user.id}}__e_{{e.id}}">
+                    <label class="form-check-label" for="user_{{user.id}}__e_{{e.id}}">{{e.title}}</label>
+                    </div>
+                </div>
+                {% endfor %}
+                <!--</fieldset>-->
+            </div>
+            {% endif %}
+            {% endfor %}
+    </div>
+    </form>
+{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'lightbox/css/lightbox.css' %}">
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'lightbox/js/lightbox.js' %}"></script>
+    
+    <script>
+    $(function() {
+        var votes = {{votes}};
+        
+        $.ajaxSetup({
+            headers: { "X-CSRFToken": '{{csrf_token}}' }
+        });
+
+        lightbox.option({
+            'resizeDuration': 200,
+        });
+
+        $('input').change(check_filled);
+        function check_filled(ev){
+            $.post(document.URL, $('form').serialize(), function(resp) {
+                all_filled();
+            });
+        };
+        
+        function all_filled(){
+            if ($('div.one-user:not(:has(:radio:checked))').length == 0){
+                $('#alert_info').removeClass('alert-primary').addClass('alert-success');
+            }
+        };
+        $('input[radio]').prop('checked', false);        
+        for (x in votes){
+            var idd ="user_"+x+"__e_"+votes[x];
+            $("#"+idd).prop('checked', true);
+        }
+        all_filled();
+        
+                
+    });
+        
+    </script>
+{% endblock %}
+

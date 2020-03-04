@@ -4,12 +4,26 @@
 
 {% block content %}
     <div class="row">
-        <h2>{{ page.title }}</h2>
+        <div class="col">
+        <h2>{{ page.title }}</h2><br>
+        <p>Order photos in Your order (the one with the highest numer is best (in Your opinion)</p>
+        <p>If the highest point availble is 25, give that many to the best picture</p>
+        <p>You'll see a list on the right side with Your top votes, best ranked at top<br>
+            By clicking on a title You'll get transported to that photo and can change Your vote</p>
+        <p>Your vote is saved when it turnes blue, if a point You want to give doesn't turn blue, 
+            then there is another photo with that points and You have to change points for that one first, 
+            use the shortcuts on the right to easier get there
+        </p>
+        <p>
+            You are welcome to write a few comments on the top photos(maybe 3-5), but You need to vote on them first
+        </p>
+        </div>
     </div>
+    <div class="row">
     <div class="col-md-9 gallery" >
             
             {% for field in entries %}
-            <div class="card mb-3">
+            <div class="card mb-3" id="card_{{field.id}}">
                 <div class="row no-gutters">
                     <div class="col-md-4">
                         {% image field fill-200x200 as thumb %}
@@ -26,12 +40,15 @@
                                 <span class="badge badge-primary badge-pill" id="{{ field.id }}_score">
                                 0
                                 </span>
-                                {{ field.title }}
+                                <span id="title_{{field.id}}">{{ field.title }}</span>
                             </h5>
                             <p class="card-text">
                                 {% for p in points %}
                                 <button id="btn_{{field.id}}_{{p}}" type="button" class="btn btn-outline-secondary mt-1" onclick="voter.vote(this);">{{p}}</button>
                                 {% endfor %}
+                                <br><br>
+                                <input type="text" placeholder="comments" class="form-control" value="{{field.comments}}" id="comments_{{field.id}}" >
+                                <!-- onchange="voter.comment(this);" -->
                             </p>
     
                             
@@ -47,10 +64,16 @@
         </ul>
         </div>
     </div>
+    </div>
 {% endblock %}
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'lightbox/css/lightbox.css' %}">
+    <style>
+        button.disabled {
+            cursor: not-allowed !important ;
+        }
+    </style>
 {% endblock %}
 
 {% block extra_js %}
@@ -61,7 +84,7 @@
         $.ajaxSetup({
             headers: { "X-CSRFToken": '{{csrf_token}}' }
         });
-        voter.init();
+        voter.init(false);
 
         lightbox.option({
             'resizeDuration': 200,
@@ -73,23 +96,48 @@
             this.allowSame = allowSame;
             this.loadPoints();
             this.currentPoints={};
+            this.data = [];
+            this.timeouts = {};
+            this.createFormListeners();
+        },
+        createFormListeners(){
+            var me = this;
+            $('input[type=text]').on('input propertychange change', function(event){
+                if (event.target.id in me.timeouts)
+                    clearTimeout(me.timeouts[event.target.id])
+                me.timeouts[event.target.id] = setTimeout(function(){
+                    me.saveComment(event.target.id);
+                }, 1000);
+            });
+        },
+        saveComment(target_div_id){
+            var id = target_div_id.split('_')[1];
+            var comment_text = $("#"+target_div_id).val();
+            $.post("v/"+id+"/comment/", {'comments': comment_text}, function(data){
+                console.log(data);
+            });
+            //console.log(target_div_id, "Save text for ", id, ": ", comment_text);
         },
         loadPoints() {
             var me = this;
             $.getJSON('v/', function(data){
                 data.forEach(vote => {
+                    console.log(vote);
                     me.setPointsFor(vote.id, vote.points);
-                    
                     me.currentPoints[vote.id] = vote.points;
+                    $("#comments_"+vote.id).val(vote.comments);
+                    //me.data.push({'points': vote.points, 'id': vote.id, 'name': vote.name});
                 });
+                me.create_list();
             });
         },
     
         enable(point, enable) {
-            for (var key in this.currentPoints){
-                var trg = $("#btn_"+key+"_"+point);
-                trg.toggleClass("disabled", !enable);
-                
+            var selector = "btn_\\d+_" +point;
+            var re = new RegExp(selector);
+            $("button").filter(function(){return this.id.match(re);}).each(function(i,e){
+                $(e).toggleClass("disabled", !enable);
+                /*
                 if (!this.allowSame){
                     if (enable){
                         trg.removeAttr("disabled");
@@ -97,7 +145,10 @@
                         trg.attr("disabled", "disabled");
                     }
                 }
-            }
+                */
+            });
+            
+            
         },
         toggle(id, points, current){
             var trg = $("#btn_"+id+"_"+points);
@@ -114,7 +165,20 @@
             this.toggle(id,this.currentPoints[id], false);
             this.enable(this.currentPoints[id], true);
             
-            this.currentPoints[id] = points;
+            this.currentPoints[id] = parseInt(points);
+
+            var found = false;
+            for (x in this.data) {
+                if (this.data[x]['id'] == id) {
+                    this.data[x]['points']=parseInt(points);
+                    found = true;
+                    break;
+                } 
+            }
+            if (!found){
+                this.data.push({'id': id, 'points': points, 'name': $("#title_"+id).text()});
+            }
+            
 
         },
         vote(me){
@@ -122,10 +186,39 @@
             var v = this;
             // TODO show spinner and close it
             $.post("v/"+x[1]+"/", {'points': x[2]}, function(data){
-                console.log(data);
                 v.setPointsFor(x[1], x[2]);
+                v.create_list();
             });
-        }
+        },
+        comment(me){
+            console.log(me.id);
+            
+        },
+        create_list(){
+            // sort list
+            this.data.sort((a, b) => parseInt(b.points) - parseInt(a.points));
+
+            // Clear list, we'll always make a new one
+            var list = document.getElementById("top-list");
+            list.innerHTML = "";
+            for (e in this.data){
+                if (0 == this.data[e].points) continue;
+                var li = document.createElement("li");
+                li.className = "list-group-item d-flex justify-content-between align-items-center";
+                var link = document.createElement("a");
+                link.href = "#card_"+this.data[e].id;
+                link.innerHTML = this.data[e].name;
+                li.appendChild(link);
+
+                var spa = document.createElement("span");
+                spa.className = "badge badge-primary badge-pill";
+                spa.innerHTML = this.data[e].points;
+
+                li.appendChild(spa);
+                list.appendChild(li);
+            }
+
+        },
 
     };
     

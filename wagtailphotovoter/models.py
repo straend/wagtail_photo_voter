@@ -8,6 +8,8 @@ from django.utils.decorators import method_decorator
 
 from django.contrib import messages
 from django.forms.formsets import formset_factory
+from django.forms import Form
+
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponseNotAllowed, HttpResponse, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
 from django.utils.text import slugify
@@ -55,7 +57,7 @@ def check_dates(start, end):
 class Competition(RoutablePageMixin, Page):
     rules = RichTextField()
     allowed_points = models.CharField(max_length=128, default="0,1,2,3,4,5,6,7,8,9,10")
-    allow_same_points = models.BooleanField(default=False)
+    allow_same_points = models.BooleanField(default=False, help_text='Not working, don\'t enable')
 
     entries_per_person = models.PositiveIntegerField(default=2)
     entries_in_rating = models.PositiveIntegerField(default=1)
@@ -88,7 +90,24 @@ class Competition(RoutablePageMixin, Page):
         except:
             return False
 
+    @route(r'^vote/v/(\d+)/comment/$')
+    @method_decorator(login_required)
+    def make_comment(self, request, entry_id=None):
+        if not self.user_has_vote_access(request.user):
+            return logout_then_login(request)
+        print(entry_id)
+        #entry = get_object_or_404(EntryImage, id=entry_id)
+        votes =  get_object_or_404(Votes, entry_id=entry_id)
+        #votes, _ = Votes.objects.get_or_create(id=entry_id, user=request.user)
+        comments = request.POST.get('comments')
+        votes.comments = comments
+        votes.save()
 
+        print(votes, comments)
+        
+        return JsonResponse({'comment': votes.comments})
+        
+    
     @route(r'^vote/v/(\d+)/$')
     @route(r'^vote/v/$')
     @method_decorator(login_required)
@@ -100,7 +119,7 @@ class Competition(RoutablePageMixin, Page):
             votes = Votes.objects.filter(entry__competition=self, user=request.user)
             res = []
             for x in votes:
-                res.append({'id': x.entry.id, 'points': x.points} )
+                res.append({'id': x.entry.id, 'points': x.points, 'name': x.entry.title, 'comments': x.comments} )
             return JsonResponse(res, safe=False)
         else:
             entry = get_object_or_404(EntryImage, id=entry_id)
@@ -157,6 +176,53 @@ class Competition(RoutablePageMixin, Page):
             context
         )   
     
+    @route(r'^choice/$', name='choice')
+    @method_decorator(login_required)
+    def show_choice_form(self, request):
+        if not self.user_has_vote_access(request.user):
+            messages.error(request, 'You lack permissions for this Competition')
+            
+            return logout_then_login(request, login_url="{}vote".format(self.url))
+
+        context = {}
+        context['page'] = self
+
+        between, future = check_dates(
+            self.voting_start, 
+            self.voting_end
+        )
+
+        if not between:
+            if future:
+                messages.error(request, 'Voting starts {}'.format(self.voting_start))
+            else:
+                messages.error(request, 'Voting ended {}'.format(self.voting_end))
+             
+        elif request.method == 'POST':
+            for user_id in request.POST:
+                if user_id.startswith("user_"):
+                    u_id = user_id.split("_")[1]
+                    i_id = request.POST.get(user_id)
+                    entry = EntryImage.objects.get(pk=i_id)
+                    iv, created = ImageVote.objects.get_or_create(user=request.user, entry=entry)
+                    # Find and delete other
+                    ImageVote.objects.filter(entry__user=entry.user).exclude(entry=entry).delete()
+            return JsonResponse({"OK": "fo"})
+        else:
+            votes = {}
+            for e in ImageVote.objects.filter(user=request.user).all():
+                votes[e.entry.user.id] = e.entry.id
+
+            context['users'] = EntryUser.objects.filter(entries__competition=self).distinct()
+            context['votes'] = votes
+            print(votes)
+
+        return render(
+            request, 
+            'wagtailphotovoter/image_choice.html', 
+            context
+        )
+
     @route(r'^result/$')
     @method_decorator(login_required)
     def show_result(self, request):
@@ -256,13 +322,18 @@ class Competition(RoutablePageMixin, Page):
             context
         )
 
+class ImageVote(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='image_votes', blank=True, null=True)
+    entry = models.ForeignKey('EntryImage', on_delete=models.CASCADE, related_name='image_votes', blank=True, null=True)
     
+
 class Votes(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='voters', blank=True, null=True)
     entry = models.ForeignKey('EntryImage', on_delete=models.CASCADE, related_name='votes', blank=True, null=True)
     points = models.PositiveSmallIntegerField(default=0)
     first = models.DateTimeField(auto_now_add=True)
     edited = models.DateTimeField(auto_now=True)
+    comments = models.CharField(max_length=300, blank=True, null=True)
     class Meta:
         unique_together = [['user', 'entry']]
 
@@ -285,7 +356,12 @@ class EntryImage(AbstractImage):
     location = models.CharField(max_length=256)
     submitted = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(EntryUser, on_delete=models.CASCADE, related_name='entries', null=True)
-    
+    vote_count = models.PositiveIntegerField(default=0)
+
+    @property
+    def my_vote_count(self):
+        return self.image_votes.count()
+
     def get_my_path(self):
         return Path('competition') / "{}".format(self.competition.id)
 
