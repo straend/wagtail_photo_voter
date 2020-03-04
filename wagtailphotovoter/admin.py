@@ -5,7 +5,6 @@ from .models import Competition, EntryImage, Votes, EntryUser, ImageVote
 
 admin.site.register(Competition)
 
-admin.site.register(Votes)
 admin.site.register(EntryUser)
 
 @admin.register(ImageVote)
@@ -17,3 +16,9 @@ class ImageVoteAdmin(admin.ModelAdmin):
 class EntryImageAdmin(admin.ModelAdmin):
     list_filter = ('competition', 'user')
     list_display  = ('competition', 'user', 'title')
+
+@admin.register(Votes)
+class VotesAdmin(admin.ModelAdmin):
+    list_filter = ('entry__competition', 'user')
+    list_display = ('user', 'entry', 'points',)
+    

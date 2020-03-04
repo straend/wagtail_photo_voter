@@ -23,12 +23,12 @@
             <th>Author</th>
         </thead>
         <tbody>
-            {% for e in entries|dictsortreversed:"points" %}
-            {% image e fill-150x150 as thumb %}
+            {% for e in entries %}
+            {% image e fill-200x200 as thumb %}
             <tr>
                 <td>
                     <a href="{{e.link}}" data-lightbox="{{page.id}}" 
-                        data-title="#{{ forloop.counter }} - '{{e.title}}' {{e.author}} <br>{{e.points}}">
+                        data-title="#{{ forloop.counter }} - '{{e.title}}' {{e.user.name}} <br>{{e.total_points}}">
                         <img {{ thumb.attrs }} class="img-fluid" />
                     </a>
                 </td>
@@ -36,13 +36,13 @@
                     {{ forloop.counter }}
                 </td>
                 <td>
-                    {{e.points}}
+                    {{e.total_points}}
                 </td>
                 <td>
                     {{e.title}}
                 </td>
                 <td>
-                    {{e.author}}
+                    {{e.user.name}}
                 </td>
 
             </tr>
@@ -51,14 +51,6 @@
     </table>
 
 </div>
-<div class="col-md-3">
-    <div class="sticky-top">
-        <ul id="top-list" class="list-group">
-        </ul>
-    </div>
-</div>
-
-
 
 {% endblock %}
 
@@ -74,73 +66,11 @@
         $.ajaxSetup({
             headers: { "X-CSRFToken": '{{csrf_token}}' }
         });
-        voter.init();
-
         lightbox.option({
             'resizeDuration': 200,
         })
     });
 
-    var voter = {
-        init(allowSame) {
-            this.allowSame = allowSame;
-            this.loadPoints();
-            this.currentPoints = {};
-        },
-        loadPoints() {
-            var me = this;
-            $.getJSON('v/', function (data) {
-                data.forEach(vote => {
-                    me.setPointsFor(vote.id, vote.points);
-
-                    me.currentPoints[vote.id] = vote.points;
-                });
-            });
-        },
-
-        enable(point, enable) {
-            for (var key in this.currentPoints) {
-                var trg = $("#btn_" + key + "_" + point);
-                trg.toggleClass("disabled", !enable);
-
-                if (!this.allowSame) {
-                    if (enable) {
-                        trg.removeAttr("disabled");
-                    } else {
-                        trg.attr("disabled", "disabled");
-                    }
-                }
-            }
-        },
-        toggle(id, points, current) {
-            var trg = $("#btn_" + id + "_" + points);
-            trg.toggleClass("btn-outline-secondary", !current);
-            trg.toggleClass("btn-primary", current);
-            trg.toggleClass("disabled", current);
-        },
-        setPointsFor(id, points) {
-            $("#" + id + "_score").text(points + "");
-            this.toggle(id, points, true);
-            if (points > 0) {
-                this.enable(points, false);
-            }
-            this.toggle(id, this.currentPoints[id], false);
-            this.enable(this.currentPoints[id], true);
-
-            this.currentPoints[id] = points;
-
-        },
-        vote(me) {
-            var x = me.id.split('_');
-            var v = this;
-            // TODO show spinner and close it
-            $.post("v/" + x[1] + "/", { 'points': x[2] }, function (data) {
-                console.log(data);
-                v.setPointsFor(x[1], x[2]);
-            });
-        }
-
-    };
 
 </script>
 {% endblock %}

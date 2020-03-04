@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import F
 
 from django.conf import settings
 from django.contrib.auth.models import User, Group, AnonymousUser
@@ -230,8 +231,9 @@ class Competition(RoutablePageMixin, Page):
             return logout_then_login(request, login_url="{}result".format(self.url))
 
         context = {}
-        context['entries'] = self.entries.all()
-        
+        q = self.entries.annotate(total_points=Sum('votes__points')).order_by(F('total_points').desc(nulls_last=True)).all()
+        context['entries'] = q
+        #print(context['entries'])
         context['page'] = self
         return render(
             request, 
@@ -251,10 +253,11 @@ class Competition(RoutablePageMixin, Page):
         )
         writer = csv.writer(response)
         writer.writerow(['link', 'points', 'title', 'author', 'email', 'location', 'gear'])
-        for e in self.entries.all():
+        q = self.entries.annotate(total_points=Sum('votes__points')).order_by(F('total_points').desc(nulls_last=True)).all()
+        for e in q:
             writer.writerow(["{}{}".format(
                 settings.BASE_URL, e.link)
-                , e.points, e.title, e.author, e.email, e.location, e.gear
+                , e.points, e.title, e.user.name, e.user.email, e.location, e.gear
             ])
 
         return response
@@ -336,6 +339,9 @@ class Votes(models.Model):
     comments = models.CharField(max_length=300, blank=True, null=True)
     class Meta:
         unique_together = [['user', 'entry']]
+
+    def __str__(self):
+        return "{} gives {} points to {} in {}".format(self.user, self.points, self.entry, self.entry.competition)
 
 class EntryUser(models.Model):
     name = models.CharField(max_length=256)
