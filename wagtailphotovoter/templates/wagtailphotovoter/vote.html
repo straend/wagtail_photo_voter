@@ -122,7 +122,6 @@
             var me = this;
             $.getJSON('v/', function(data){
                 data.forEach(vote => {
-                    console.log(vote);
                     me.setPointsFor(vote.id, vote.points);
                     me.currentPoints[vote.id] = vote.points;
                     $("#comments_"+vote.id).val(vote.comments);
@@ -133,30 +132,36 @@
         },
     
         enable(point, enable) {
-            var selector = "btn_\\d+_" +point;
+            if (undefined == point)
+                return;
+            var selector = "btn_\\d+_" +point+"$";
+            var me = this;
             var re = new RegExp(selector);
             $("button").filter(function(){return this.id.match(re);}).each(function(i,e){
                 $(e).toggleClass("disabled", !enable);
                 /*
-                if (!this.allowSame){
+                if (!me.allowSame){
                     if (enable){
-                        trg.removeAttr("disabled");
+                        $(e).removeAttr("disabled");
                     } else {
-                        trg.attr("disabled", "disabled");
+                        $(e).attr("disabled", "disabled");
                     }
                 }
                 */
+                
             });
             
             
         },
         toggle(id, points, current){
+            if(undefined == points) return;
             var trg = $("#btn_"+id+"_"+points);
             trg.toggleClass("btn-outline-secondary", !current);
             trg.toggleClass("btn-primary", current);
             trg.toggleClass("disabled", current);
         },
         setPointsFor(id, points) {
+            points = parseInt(points);
             $("#"+id+"_score").text(points+"");
             this.toggle(id, points, true);
             if(points>0){
@@ -165,12 +170,12 @@
             this.toggle(id,this.currentPoints[id], false);
             this.enable(this.currentPoints[id], true);
             
-            this.currentPoints[id] = parseInt(points);
+            this.currentPoints[id] = points;
 
             var found = false;
             for (x in this.data) {
                 if (this.data[x]['id'] == id) {
-                    this.data[x]['points']=parseInt(points);
+                    this.data[x]['points']=points;
                     found = true;
                     break;
                 } 
