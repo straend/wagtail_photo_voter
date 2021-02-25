@@ -9,6 +9,9 @@ Install using pip:
 ```
 pip install wagtail-photo-voter
 ```
+
+Also needs ExifTool from https://exiftool.org/install.html installed
+
 ### Settings
 
 In your settings file, add `wagtailphotovoter` and `wagtail.contrib.routable_page`  to `INSTALLED_APPS`:

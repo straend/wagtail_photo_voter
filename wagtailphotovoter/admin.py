@@ -1,5 +1,7 @@
 from django.contrib import admin
 
+from simple_history.admin import SimpleHistoryAdmin
+
 # Register your models here.
 from .models import Competition, EntryImage, Votes, EntryUser, ImageVote
 
@@ -14,11 +16,11 @@ class ImageVoteAdmin(admin.ModelAdmin):
 
 @admin.register(EntryImage)
 class EntryImageAdmin(admin.ModelAdmin):
-    list_filter = ('competition', 'user')
-    list_display  = ('competition', 'user', 'title')
+    list_filter = ('competition', 'taken', 'user' )
+    list_display  = ('competition', 'user', 'title', 'taken')
 
 @admin.register(Votes)
-class VotesAdmin(admin.ModelAdmin):
+class VotesAdmin(SimpleHistoryAdmin):
     list_filter = ('entry__competition', 'user')
     list_display = ('user', 'entry', 'points',)
     

@@ -39,7 +39,10 @@
                     {{e.total_points}}
                 </td>
                 <td>
-                    {{e.title}}
+                    <b>{{e.title}}</b>
+                    {% for v in e.votes.all %}
+                    {% if v.comments %} <br> <p>{{v.user}}: {{ v.comments }}</p>{% endif %}
+                    {% endfor %}
                 </td>
                 <td>
                     {{e.user.name}}

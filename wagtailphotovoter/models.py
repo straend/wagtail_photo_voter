@@ -17,8 +17,7 @@ from django.utils.text import slugify
 from django.utils import timezone
 from django.db.models import Sum
 
-
-from wagtail.core.models import Page
+from wagtail.core.models import Page, Collection
 from wagtail.core.fields import RichTextField
 
 from wagtail.images.models import AbstractImage, Image, AbstractRendition
@@ -29,6 +28,10 @@ from pathlib import Path
 import json
 import csv
 from .forms import AuthorForm, ImageForm
+
+from simple_history.models import HistoricalRecords
+from exiffield.fields import ExifField
+from exiffield.getters import get_datetaken
 
 def get_path_for_entry(instance, filename):
     ext = filename.split('.')[-1]
@@ -96,14 +99,12 @@ class Competition(RoutablePageMixin, Page):
     def make_comment(self, request, entry_id=None):
         if not self.user_has_vote_access(request.user):
             return logout_then_login(request)
-        print(entry_id)
-        #entry = get_object_or_404(EntryImage, id=entry_id)
+        
         votes =  get_object_or_404(Votes, entry_id=entry_id)
-        #votes, _ = Votes.objects.get_or_create(id=entry_id, user=request.user)
         comments = request.POST.get('comments')
         votes.comments = comments
         votes.save()
-
+        
         print(votes, comments)
         
         return JsonResponse({'comment': votes.comments})
@@ -252,12 +253,16 @@ class Competition(RoutablePageMixin, Page):
             self.id, self.slug
         )
         writer = csv.writer(response)
-        writer.writerow(['link', 'points', 'title', 'author', 'email', 'location', 'gear'])
+        writer.writerow(['link', 'points', 'title', 'author', 'email', 'location', 'gear', 'comments'])
         q = self.entries.annotate(total_points=Sum('votes__points')).order_by(F('total_points').desc(nulls_last=True)).all()
         for e in q:
+            comments = ""
+            for v in e.votes.all():
+                if v.comment is not None:
+                    comments += "{}: {}\n".format(v.user, v.comments)
             writer.writerow(["{}{}".format(
                 settings.BASE_URL, e.link)
-                , e.points, e.title, e.user.name, e.user.email, e.location, e.gear
+                , e.points, e.title, e.user.name, e.user.email, e.location, e.gear, comments
             ])
 
         return response
@@ -295,11 +300,14 @@ class Competition(RoutablePageMixin, Page):
                 user, created = EntryUser.objects.get_or_create(email=email)
                 user.name = name
                 user.save()
-
+                # get collection
+                c = Collection.objects.filter(name=self.title).first()
+                
                 for i in iform:
                     gear = i.cleaned_data.get('gear')
                     title = i.cleaned_data.get('title')
                     location = i.cleaned_data.get('location')
+                    # Skip if not 
                     if gear is None and title is None and location is None:
                         continue
                     img = EntryImage.objects.create(
@@ -309,10 +317,12 @@ class Competition(RoutablePageMixin, Page):
                         gear = gear,
                         location = location,
                         user=user,
+                        collection=c,
                     )
                     messages.success(request, "Your entry '{}' has been submitted".format(title))
                 # Both forms valid, so redirect to avoid multiple submissions of same
-                return HttpResponseRedirect('')
+                return HttpResponseRedirect(self.get_url())
+           
         else:
             iform = imageFormSet()
             aform = AuthorForm()
@@ -337,11 +347,13 @@ class Votes(models.Model):
     first = models.DateTimeField(auto_now_add=True)
     edited = models.DateTimeField(auto_now=True)
     comments = models.CharField(max_length=300, blank=True, null=True)
+    
+    history = HistoricalRecords()
     class Meta:
         unique_together = [['user', 'entry']]
 
     def __str__(self):
-        return "{} gives {} points to {} in {}".format(self.user, self.points, self.entry, self.entry.competition)
+        return "{}, {} points, {} in {} [{}]".format(self.user, self.points, self.entry, self.entry.competition, self.comments)
 
 class EntryUser(models.Model):
     name = models.CharField(max_length=256)
@@ -364,6 +376,14 @@ class EntryImage(AbstractImage):
     user = models.ForeignKey(EntryUser, on_delete=models.CASCADE, related_name='entries', null=True)
     vote_count = models.PositiveIntegerField(default=0)
 
+    taken = models.DateTimeField(blank=True, null=True, editable=False)
+    exif = ExifField(
+        source='file',
+        denormalized_fields={
+            'taken': get_datetaken,
+        },
+    )
+    
     @property
     def my_vote_count(self):
         return self.image_votes.count()
