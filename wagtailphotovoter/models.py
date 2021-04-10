@@ -62,7 +62,7 @@ class Competition(RoutablePageMixin, Page):
     rules = RichTextField()
     voting = RichTextField(blank=True, null=True)
     allowed_points = models.CharField(max_length=128, default="0,1,2,3,4,5,6,7,8,9,10")
-    allow_same_points = models.BooleanField(default=False, help_text='Not working, don\'t enable')
+    allow_same_points = models.BooleanField(default=False)
 
     entries_per_person = models.PositiveIntegerField(default=2)
     entries_in_rating = models.PositiveIntegerField(default=1)
@@ -76,6 +76,7 @@ class Competition(RoutablePageMixin, Page):
     content_panels = Page.content_panels + [
         FieldPanel('rules'),
         FieldPanel('votinghelp'),
+        FieldRowPanel([FieldPanel('allowed_points'), FieldPanel('allow_same_points')]),
         FieldRowPanel([FieldPanel('entries_per_person'), FieldPanel('entries_in_rating')]),
         FieldRowPanel([FieldPanel('submission_start'), FieldPanel('submission_end')]),
         FieldRowPanel([FieldPanel('voting_start'), FieldPanel('voting_end')]),

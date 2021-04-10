@@ -38,7 +38,6 @@
                                 {% endfor %}
                                 <br><br>
                                 <input type="text" placeholder="comments" class="form-control" value="{{field.comments}}" id="comments_{{field.id}}" >
-                                <!-- onchange="voter.comment(this);" -->
                             </p>
     
                             
@@ -74,7 +73,7 @@
         $.ajaxSetup({
             headers: { "X-CSRFToken": '{{csrf_token}}' }
         });
-        voter.init(false);
+        voter.init("{{ page.allow_same_points }}"=="True"?true:false);
 
         lightbox.option({
             'resizeDuration': 200,
@@ -128,8 +127,6 @@
             var me = this;
             var re = new RegExp(selector);
             $("button").filter(function(){return this.id.match(re);}).each(function(i,e){
-                $(e).toggleClass("disabled", !enable);
-                /*
                 if (!me.allowSame){
                     if (enable){
                         $(e).removeAttr("disabled");
@@ -137,11 +134,7 @@
                         $(e).attr("disabled", "disabled");
                     }
                 }
-                */
-                
             });
-            
-            
         },
         toggle(id, points, current){
             if(undefined == points) return;
@@ -185,10 +178,7 @@
                 v.create_list();
             });
         },
-        comment(me){
-            console.log(me.id);
-            
-        },
+
         create_list(){
             // sort list
             this.data.sort((a, b) => parseInt(b.points) - parseInt(a.points));
