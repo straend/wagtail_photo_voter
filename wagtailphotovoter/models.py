@@ -60,6 +60,7 @@ def check_dates(start, end):
 
 class Competition(RoutablePageMixin, Page):
     rules = RichTextField()
+    voting = RichTextField(blank=True, null=True)
     allowed_points = models.CharField(max_length=128, default="0,1,2,3,4,5,6,7,8,9,10")
     allow_same_points = models.BooleanField(default=False, help_text='Not working, don\'t enable')
 
@@ -74,8 +75,7 @@ class Competition(RoutablePageMixin, Page):
     
     content_panels = Page.content_panels + [
         FieldPanel('rules'),
-        FieldPanel('allowed_points'),
-        FieldPanel('allow_same_points'),
+        FieldPanel('votinghelp'),
         FieldRowPanel([FieldPanel('entries_per_person'), FieldPanel('entries_in_rating')]),
         FieldRowPanel([FieldPanel('submission_start'), FieldPanel('submission_end')]),
         FieldRowPanel([FieldPanel('voting_start'), FieldPanel('voting_end')]),

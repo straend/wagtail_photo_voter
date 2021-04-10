@@ -6,17 +6,7 @@
     <div class="row">
         <div class="col">
         <h2>{{ page.title }}</h2><br>
-        <p>Order photos in Your order (the one with the highest numer is best (in Your opinion)</p>
-        <p>If the highest point availble is 25, give that many to the best picture</p>
-        <p>You'll see a list on the right side with Your top votes, best ranked at top<br>
-            By clicking on a title You'll get transported to that photo and can change Your vote</p>
-        <p>Your vote is saved when it turnes blue, if a point You want to give doesn't turn blue, 
-            then there is another photo with that points and You have to change points for that one first, 
-            use the shortcuts on the right to easier get there
-        </p>
-        <p>
-            You are welcome to write a few comments on the top photos(maybe 3-5), but You need to vote on them first
-        </p>
+        {{ page.votinghelp | richtext }}
         </div>
     </div>
     <div class="row">
