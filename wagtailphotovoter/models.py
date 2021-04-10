@@ -258,7 +258,7 @@ class Competition(RoutablePageMixin, Page):
         for e in q:
             comments = ""
             for v in e.votes.all():
-                if v.comment is not None:
+                if v.comments is not None:
                     comments += "{}: {}\n".format(v.user, v.comments)
             writer.writerow(["{}{}".format(
                 settings.BASE_URL, e.link)
