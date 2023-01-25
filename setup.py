@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="wagtail_photo_voter",
-    version="0.10.0",
+    version="0.10.3",
     author="Tomas Strand",
     author_email="wagtail@tomas.fik1.net",
     description="A Wagtail module for creating Photo competitions with voting",
@@ -21,8 +21,8 @@ setuptools.setup(
         "Framework :: Wagtail",
     ],
     install_requires=[
-        'Django>=3.1',
-        'wagtail>=2.12',
+        'Django>=4.1',
+        'wagtail>=4.1',
         'django-bootstrap4',
         'django-exiffield'
     ],
